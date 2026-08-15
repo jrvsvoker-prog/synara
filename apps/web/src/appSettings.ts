@@ -58,7 +58,11 @@ const MAX_CUSTOM_MODEL_COUNT = 32;
 export const MAX_CUSTOM_MODEL_LENGTH = 256;
 export const MIN_CHAT_FONT_SIZE_PX = 11;
 export const MAX_CHAT_FONT_SIZE_PX = 18;
-export const DEFAULT_CHAT_FONT_SIZE_PX = 12;
+// Drives the whole app scale, not just the transcript: getAppTypographyScale derives every
+// UI step from it (ui = base, meta = 0.84×, timestamp = 0.72×). 13 puts interface text at
+// the macOS system-app size — 12 read as a dense utility panel rather than a native app —
+// and lands chat prose at a comfortable reading size. Users can still move it 11–18.
+export const DEFAULT_CHAT_FONT_SIZE_PX = 13;
 export const MIN_TERMINAL_FONT_SIZE_PX = 10;
 export const MAX_TERMINAL_FONT_SIZE_PX = 22;
 export const DEFAULT_TERMINAL_FONT_SIZE_PX = 12;

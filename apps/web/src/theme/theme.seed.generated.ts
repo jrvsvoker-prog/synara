@@ -526,6 +526,40 @@ export const THEME_SEED_CATALOG: Record<string, Partial<Record<ThemeVariant, Chr
       surface: "#f5f3ed",
     },
   },
+  quiet: {
+    dark: {
+      accent: "#81a1c1",
+      contrast: 0,
+      fonts: {
+        code: null,
+        ui: null,
+      },
+      ink: "#f0f0f0",
+      opaqueWindows: true,
+      semanticColors: {
+        diffAdded: "#3fa266",
+        diffRemoved: "#e34671",
+        skill: "#b09ce0",
+      },
+      surface: "#14171d",
+    },
+    light: {
+      accent: "#0064b0",
+      contrast: 0,
+      fonts: {
+        code: null,
+        ui: null,
+      },
+      ink: "#141414",
+      opaqueWindows: true,
+      semanticColors: {
+        diffAdded: "#007041",
+        diffRemoved: "#be1744",
+        skill: "#7565cc",
+      },
+      surface: "#f7f6f6",
+    },
+  },
   raycast: {
     dark: {
       accent: "#ff6363",

@@ -24,19 +24,28 @@ export const SIDEBAR_ROW_HOVER_CLASS_NAME =
 export const SIDEBAR_ROW_ACTIVE_CLASS_NAME =
   "bg-[var(--sidebar-accent-active)] text-[var(--sidebar-accent-foreground)] hover:bg-[var(--sidebar-accent-active)] hover:text-[var(--sidebar-accent-foreground)]";
 
-export const SIDEBAR_ROW_IDLE_TEXT_CLASS_NAME = "text-foreground/89";
+/* Resting sidebar text sits on Cursor's SECONDARY step (74% of the ink — #4d4d4d
+   over the light sidebar): nav items and inactive thread/project labels are all
+   muted; only the ACTIVE row carries the full foreground. Hover restores the full
+   foreground via SIDEBAR_ROW_HOVER_CLASS_NAME. */
+export const SIDEBAR_ROW_IDLE_TEXT_CLASS_NAME = "text-foreground/74";
 
 /**
  * Resting foreground for primary sidebar item labels and their accompanying
  * leading/pin icons (inactive thread name, project/folder name, folder + pin
- * glyphs). Sits just below the full-foreground active row so resting items read
- * clearly without competing with the selected thread.
+ * glyphs). Same secondary step as the nav rows — the selected thread is the only
+ * full-foreground row, so the active/inactive contrast does the wayfinding.
  */
-export const SIDEBAR_ROW_LABEL_TEXT_CLASS_NAME = "text-foreground/95";
+export const SIDEBAR_ROW_LABEL_TEXT_CLASS_NAME = "text-foreground/74";
 
-/** Section label ("Threads"/"Pinned" and settings "App"/"Synara"). */
+/**
+ * Section label ("Threads"/"Pinned" and settings "App"/"Synara"). One step below the row
+ * label in size so the list reads as items under a heading rather than two peer rows, and
+ * solid enough to actually be read — at the row size and a third of the ink it competed
+ * with its own items while still being hard to make out.
+ */
 export const SIDEBAR_SECTION_LABEL_CLASS_NAME =
-  "text-[length:var(--app-font-size-ui,12px)] font-normal text-muted-foreground/58";
+  "text-[length:var(--app-font-size-ui-sm,11px)] font-normal text-muted-foreground/65";
 
 /** Project/chat/settings header rows and settings sidebar nav items. */
 export const SIDEBAR_HEADER_ROW_CLASS_NAME = [

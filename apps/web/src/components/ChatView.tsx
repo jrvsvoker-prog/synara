@@ -307,7 +307,6 @@ import {
   normalizeRuntimeModeForProvider,
   providerModelSupportsAutoRuntimeMode,
 } from "../lib/runtimeMode";
-import { SynaraLogo } from "./SynaraLogo";
 import { ThreadWorktreeHandoffDialog } from "./ThreadWorktreeHandoffDialog";
 import {
   formatShortcutLabel,
@@ -545,6 +544,7 @@ import {
   COMPOSER_COLUMN_FRAME_CLASS_NAME,
   COMPOSER_EDITOR_PADDING_CLASS_NAME,
   COMPOSER_FOOTER_ROW_CLASS_NAME,
+  COMPOSER_TOOLBAR_PICKER_TRIGGER_CLASS_NAME,
   CHAT_BACKGROUND_CLASS_NAME,
   CHAT_COLUMN_FRAME_CLASS_NAME,
   CHAT_COLUMN_GUTTER_CLASS_NAME,
@@ -12078,59 +12078,51 @@ export default function ChatView({
                   CHAT_COLUMN_GUTTER_CLASS_NAME,
                 )}
               >
-                {/* Center the heading, composer, and suggestion list together as a
+                {/* Center the context row, composer, and suggestion list together as a
                     single group: the suggestions live in normal flow so the whole
                     block (composer + suggestions) stays vertically centered in the
                     view instead of the composer being centered with the list hanging
                     below it. */}
                 <div className="flex w-full flex-col justify-center">
-                  <div
-                    className={cn(
-                      "flex flex-col items-center gap-4 px-6 pb-5 text-center select-none",
-                      CHAT_COLUMN_FRAME_CLASS_NAME,
-                    )}
-                  >
-                    <SynaraLogo aria-label="Synara logo" className="size-10" />
-                    <h2
-                      data-testid="empty-landing-heading"
-                      className="text-[26px] font-normal leading-[1.15] tracking-[-0.015em] text-foreground/95 sm:text-[30px]"
+                  {/* The empty screen leads with the composer, not with a wordmark: this
+                      row carries only the working context (which folder the draft targets)
+                      as a compact picker, at the size it will keep once the conversation
+                      starts. The project picker itself is unchanged — it used to hang off a
+                      dotted-underline word inside a 30px headline, which made a routine
+                      control read as decoration. */}
+                  {showEmptyLandingProjectPicker ? (
+                    <div
+                      className={cn(
+                        "flex items-center justify-start px-1 pb-2 select-none",
+                        CHAT_COLUMN_FRAME_CLASS_NAME,
+                      )}
                     >
-                      {isEmptyChatLanding ? (
-                        "What should we work on?"
-                      ) : (
-                        <>
-                          What should we do in{" "}
-                          {showEmptyLandingProjectPicker ? (
-                            <ProjectPicker
-                              align="center"
-                              side="bottom"
-                              selectionMode="project"
-                              selectedProjectId={activeProject.id}
-                              selectedWorkspaceRoot={activeProject.cwd}
-                              showResetToHome
-                              onSelectProject={handleSelectProjectForEmptyDraft}
-                              onCreateProjectFromPath={handleCreateProjectFromPickerPath}
-                              onResetToHome={handleResetWorkspaceToHome}
-                              renderTrigger={
-                                <button
-                                  type="button"
-                                  data-testid="empty-landing-heading-project-trigger"
-                                  className="cursor-pointer rounded-sm text-inherit underline decoration-dotted decoration-[1.5px] underline-offset-[6px] transition-colors duration-150 ease-out hover:text-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 motion-reduce:transition-none"
-                                >
-                                  {activeProjectDisplayName ?? "this folder"}
-                                </button>
-                              }
-                            />
-                          ) : (
-                            <span className="text-inherit">
+                      <ProjectPicker
+                        align="start"
+                        side="bottom"
+                        selectionMode="project"
+                        selectedProjectId={activeProject.id}
+                        selectedWorkspaceRoot={activeProject.cwd}
+                        showResetToHome
+                        onSelectProject={handleSelectProjectForEmptyDraft}
+                        onCreateProjectFromPath={handleCreateProjectFromPickerPath}
+                        onResetToHome={handleResetWorkspaceToHome}
+                        renderTrigger={
+                          <button
+                            type="button"
+                            data-testid="empty-landing-heading-project-trigger"
+                            className={COMPOSER_TOOLBAR_PICKER_TRIGGER_CLASS_NAME}
+                          >
+                            <FolderClosed className="size-3.5 shrink-0" />
+                            <span className="min-w-0 truncate">
                               {activeProjectDisplayName ?? "this folder"}
                             </span>
-                          )}
-                          ?
-                        </>
-                      )}
-                    </h2>
-                  </div>
+                            <ChevronDownIcon className="size-3 shrink-0" />
+                          </button>
+                        }
+                      />
+                    </div>
+                  ) : null}
                   {composerSection}
                   {(isGitRepo && !environmentEnabled && !isCenteredEmptyLanding) ||
                   relocateComposerLeadingControls ? (

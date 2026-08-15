@@ -63,7 +63,7 @@ export const COMPOSER_MUTED_ACCENT_TEXT_CLASS_NAME = "text-muted-foreground/45";
 // sync with dropdown group labels like "Git actions". Picker padding is still
 // tuned via the `--picker-section-py` token on `[data-slot="menu-label"]`.
 
-export const COMPOSER_MAX_WIDTH_CLASS_NAME = "max-w-[var(--app-chat-max-width,46rem)]";
+export const COMPOSER_MAX_WIDTH_CLASS_NAME = "max-w-[var(--app-chat-max-width,48rem)]";
 /** Main chat column background — matches the theme Background setting exactly. */
 export const CHAT_BACKGROUND_CLASS_NAME = "bg-[var(--color-background-surface)]";
 
@@ -128,9 +128,12 @@ export const COMPOSER_STACKED_HEADER_FRAME_CLASS_NAME = "mx-auto -mb-px w-11/12 
 export const COMPOSER_INPUT_SHELL_CLASS_NAME =
   "group relative z-[1] chat-composer-shell transition-colors duration-200";
 
-/** Defined composer border: the heaviest border token nudged a bit darker with foreground. */
+/** Composer outline. Cursor's prompt input rests on its stroke-tertiary step (ink at 8%)
+ *  and steps up to stroke-secondary (12%) under the pointer — the same two steps this app
+ *  exposes as `--color-border` and `--color-border-heavy`. Resting on the heavy step made
+ *  the composer the most strongly outlined object on an otherwise borderless screen. */
 export const COMPOSER_SURFACE_BORDER_CLASS_NAME =
-  "border-[color:color-mix(in_srgb,var(--color-border-heavy)_95%,var(--foreground)_5%)]";
+  "border-[color:var(--color-border)] transition-colors hover:border-[color:var(--color-border-heavy)]";
 
 /** Shared border for panels stacked above the composer; dark mode matches the live changes strip. */
 export const COMPOSER_STACKED_SURFACE_BORDER_CLASS_NAME = [

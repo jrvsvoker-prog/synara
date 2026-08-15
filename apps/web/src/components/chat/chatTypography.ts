@@ -7,6 +7,14 @@ import type { CSSProperties } from "react";
 import { DEFAULT_CHAT_FONT_SIZE_PX, normalizeChatFontSizePx } from "../../appSettings";
 
 export const USER_MESSAGE_BUBBLE_RADIUS_CLASS_NAME = "rounded-[var(--radius-user-message)]";
+
+/**
+ * Elevated chat-card surface, matching Cursor's agent transcript: the user bubble and
+ * the changed-files card are opaque elevated cards (#fcfcfc over the #f7f6f6 page in
+ * light; the bg-elevated step in dark) with a hairline border — not tints of the page.
+ * `--color-background-control-opaque` is the theme token that lands on that step.
+ */
+export const CHAT_ELEVATED_CARD_SURFACE_CLASS_NAME = "bg-[var(--color-background-control-opaque)]";
 export const USER_MESSAGE_BUBBLE_SHELL_PADDING_CLASS_NAME = "py-1.5";
 export const USER_MESSAGE_BUBBLE_SHELL_HORIZONTAL_PADDING_CLASS_NAME = "px-3";
 export const USER_MESSAGE_BUBBLE_SHELL_CHROME_CLASS_NAME = [
@@ -16,8 +24,8 @@ export const USER_MESSAGE_BUBBLE_SHELL_CHROME_CLASS_NAME = [
 
 // Temporary chats disappear when focus leaves them, so their bubbles wear a dashed
 // primary outline: the transcript itself says "this conversation is throwaway".
-// Non-temporary bubbles keep a transparent border of the same width so switching
-// threads never shifts the bubble geometry by a pixel.
+// Non-temporary bubbles carry the elevated card's hairline border (Cursor's #eaeaea
+// step) — same width, so switching threads never shifts the bubble geometry.
 const USER_MESSAGE_BUBBLE_BORDER_WIDTH_CLASS_NAME = "border";
 const USER_MESSAGE_BUBBLE_TEMPORARY_BORDER_CLASS_NAME = [
   USER_MESSAGE_BUBBLE_BORDER_WIDTH_CLASS_NAME,
@@ -26,7 +34,7 @@ const USER_MESSAGE_BUBBLE_TEMPORARY_BORDER_CLASS_NAME = [
 ].join(" ");
 const USER_MESSAGE_BUBBLE_PLAIN_BORDER_CLASS_NAME = [
   USER_MESSAGE_BUBBLE_BORDER_WIDTH_CLASS_NAME,
-  "border-transparent",
+  "border-[color:var(--color-border-light)]",
 ].join(" ");
 
 export function userMessageBubbleBorderClassName(isTemporaryThread: boolean): string {

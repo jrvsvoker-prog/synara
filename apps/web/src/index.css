@@ -127,38 +127,23 @@
      square content edge. The visible seam belongs to the content surface; the
      SidebarRail remains only the resize hit-area so a second line is never drawn. */
 
-  /* Seam tokens + soft depth, side-agnostic so each value lives in ONE place. The route
-     reads as a raised surface over the sidebar without rounding the dividing edge.
-       • --seam-line   : color of the straight vertical divider; the content-seam
-                         SidebarRail intensifies it on hover (rule below).
-       • --seam-shadow-*: the depth shadow. Geometry (blur/spread) is shared here; only the
-                         horizontal direction (--seam-shadow-x) and the alpha (light vs dark)
-                         change. The default x=0 is a harmless fallback if no sidebar side is
-                         resolved; real surfaces always set a side below.
-     Keep the shadow subtle: dark mode needs more alpha to register over the dark sidebar.
-     The route surface's overflow:hidden never clips this outset shadow, so it lands on
-     the sidebar; when the sidebar is collapsed the seam sits at the window edge and the
-     shadow simply falls off-screen. */
+  /* Seam tokens, side-agnostic so each value lives in ONE place. Like Cursor's agent
+     window, the seam is a single flat hairline — no depth shadow over the sidebar; the
+     surface step (page vs sidebar tint) does the material separation on its own.
+       • --seam-line: color of the straight vertical divider; the content-seam
+                      SidebarRail intensifies it on hover (rule below). */
   .chat-content-card {
     /* The outer seam reads stronger than --color-border (and NOT the more-transparent
        --app-surface-divider used by the internal hairlines/splits): the route's outer
        edge against the sidebar should read as solid. Do not re-unify these. */
     --seam-line: --alpha(var(--color-black) / 12%);
-    --seam-shadow-color: rgba(0, 0, 0, 0.1);
-    --seam-shadow-x: 0px;
-    /* Soft, low-spread depth: a modest blur + negative spread keeps the shadow near the
-       seam edge rather than fanning across the sidebar, just enough to lift the surface. */
-    box-shadow: var(--seam-shadow-x) 0 12px -10px var(--seam-shadow-color);
-    transition: box-shadow 300ms cubic-bezier(0.32, 0.72, 0, 1);
   }
 
   .dark .chat-content-card {
-    --seam-shadow-color: rgba(0, 0, 0, 0.36);
     --seam-line: --alpha(var(--color-white) / 8%);
   }
 
   [data-sidebar-side="left"] .chat-content-card {
-    --seam-shadow-x: -6.5px;
     border-radius: 0;
   }
 
@@ -184,17 +169,9 @@
     --seam-line: color-mix(in srgb, var(--foreground) 30%, transparent);
   }
 
-  /* Sidebar collapsed (offcanvas): drop the divider and depth because the content
-     fills the window edge-to-edge. Use the direct-child combinator so the nested
-     right dock cannot drive the main content seam. */
-  [data-slot="sidebar-wrapper"]:has(> [data-slot="sidebar"][data-state="collapsed"])
-    .chat-content-card {
-    /* Fade the depth shadow via its color token rather than `box-shadow: none` —
-       Chromium snaps box-shadow to/from `none`, but keeping the geometry and only
-       driving the color to transparent interpolates cleanly with the slide. */
-    --seam-shadow-color: transparent;
-  }
-
+  /* Sidebar collapsed (offcanvas): drop the divider because the content fills the
+     window edge-to-edge. Use the direct-child combinator so the nested right dock
+     cannot drive the main content seam. */
   [data-slot="sidebar-wrapper"]:has(> [data-slot="sidebar"][data-state="collapsed"])
     .chat-content-card::before {
     opacity: 0;
@@ -396,7 +373,10 @@
 :root {
   color-scheme: light;
   --radius: 0.625rem;
-  --radius-user-message: 0.8rem;
+  /* Matches --radius (10px) rather than sitting above it: a 12.8px corner turned short
+     messages into pills, which read as a chat-app bubble instead of the same material as
+     every other surface in the app. */
+  --radius-user-message: 0.625rem;
   --font-ui-family: var(
     --theme-font-ui-family,
     -apple-system,
@@ -421,16 +401,21 @@
   );
   --font-chat-code-family: var(--theme-font-code-family, var(--font-mono-family));
   --terminal-font-family: "JetBrainsMono NFM", "JetBrainsMono NF", "JetBrains Mono", monospace;
-  --app-shell-background: transparent;
-  --app-sidebar-backdrop-filter: blur(8px) saturate(135%);
-  --app-sidebar-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.025);
-  --app-sidebar-surface: color-mix(in srgb, var(--card) 48%, transparent);
-  --background: #fcfcfc;
-  --foreground: var(--color-neutral-800);
-  --card: var(--color-white);
-  --card-foreground: var(--color-neutral-800);
-  --popover: var(--color-white);
-  --popover-foreground: var(--color-neutral-800);
+  /* Static fallbacks for the frame before the runtime theme applies (see
+     theme.logic.ts buildThemeCssVariables). Keep them in step with the shipped
+     "quiet" seed — surface #f7f6f6 / ink #141414, opaque windows — so the first
+     paint is the same calm neutral the themed app settles on instead of flashing
+     a brighter white and a translucent sidebar. */
+  --app-shell-background: #f7f6f6;
+  --app-sidebar-backdrop-filter: none;
+  --app-sidebar-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.03);
+  --app-sidebar-surface: #efefef;
+  --background: #f7f6f6;
+  --foreground: #141414;
+  --card: #fcfcfc;
+  --card-foreground: #141414;
+  --popover: #fcfcfc;
+  --popover-foreground: #141414;
   --primary: var(--color-neutral-900);
   --primary-foreground: var(--color-white);
   --secondary: --alpha(var(--color-black) / 4%);
@@ -470,7 +455,8 @@
   --status-open: var(--color-decoration-added, var(--success));
   --status-merged: var(--color-indigo-500);
   --status-neutral: var(--color-zinc-500);
-  --sidebar: var(--card);
+  /* One recessed step behind --card, matching buildSidebarSurface. */
+  --sidebar: #efefef;
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
@@ -487,12 +473,12 @@
 
   @variant dark {
     color-scheme: dark;
-    --background: #0e0e0e;
-    --foreground: var(--color-neutral-100);
+    --background: #14171d;
+    --foreground: #f0f0f0;
     --card: color-mix(in srgb, var(--background) 99%, var(--color-white));
-    --card-foreground: var(--color-neutral-100);
+    --card-foreground: #f0f0f0;
     --popover: color-mix(in srgb, var(--background) 99%, var(--color-white));
-    --popover-foreground: var(--color-neutral-100);
+    --popover-foreground: #f0f0f0;
     --primary: var(--color-neutral-100);
     --primary-foreground: var(--color-neutral-900);
     --secondary: --alpha(var(--color-white) / 4%);
@@ -524,7 +510,7 @@
     );
     --status-merged: color-mix(in srgb, var(--color-indigo-500) 72%, var(--color-white));
     --status-neutral: color-mix(in srgb, var(--color-zinc-500) 72%, var(--color-white));
-    --sidebar: var(--card);
+    --sidebar: #0c0e11;
     --sidebar-foreground: var(--foreground);
     --sidebar-primary: var(--primary);
     --sidebar-primary-foreground: var(--primary-foreground);
@@ -533,9 +519,10 @@
     --sidebar-accent-foreground: var(--color-text-foreground, var(--foreground));
     --sidebar-border: var(--border);
     --sidebar-ring: var(--ring);
-    --app-sidebar-backdrop-filter: blur(8px) saturate(135%);
-    --app-sidebar-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.024);
-    --app-sidebar-surface: color-mix(in srgb, var(--card) 56%, transparent);
+    --app-shell-background: #14171d;
+    --app-sidebar-backdrop-filter: none;
+    --app-sidebar-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+    --app-sidebar-surface: #0c0e11;
     --color-background-button-secondary-hover: var(--secondary);
     --color-background-elevated-secondary: var(--secondary);
     --warning: var(--color-amber-500);
@@ -773,24 +760,29 @@ label:has(> select#reasoning-effort) select {
   letter-spacing: -0.01em;
 }
 
+/* A compressed scale: an assistant reply is a chat message, not an article, and headings
+   in it mark sections a few lines long. At 1.75em/1.55em an h1 landed near 23px against
+   13px body — heavy enough to read as a page title and to out-shout the prose it
+   introduces. Weight and the space above each heading carry the hierarchy instead, so the
+   steps only need to be legible, not loud. */
 .chat-markdown h1 {
-  font-size: 1.75em;
-}
-
-.chat-markdown h2 {
-  font-size: 1.55em;
-}
-
-.chat-markdown h3 {
   font-size: 1.35em;
 }
 
-.chat-markdown h4 {
+.chat-markdown h2 {
   font-size: 1.2em;
 }
 
-.chat-markdown h5 {
+.chat-markdown h3 {
   font-size: 1.1em;
+}
+
+.chat-markdown h4 {
+  font-size: 1.03em;
+}
+
+.chat-markdown h5 {
+  font-size: 1em;
 }
 
 .chat-markdown h6 {
@@ -2566,7 +2558,9 @@ diffs-container {
 
    `--composer-glass-opacity` keeps every composer-family surface on one knob. */
 :root {
-  --composer-glass-opacity: 55%;
+  /* Near-opaque: Cursor's composer is a flat elevated card (#fcfcfc / #1b1f27), so
+     the glass keeps only a whisper of frost instead of thinning back to the page. */
+  --composer-glass-opacity: 92%;
   --composer-glass-stacked-opacity: calc(var(--composer-glass-opacity) / 2);
   --composer-glass-filter: blur(40px) saturate(150%);
   /* Same base as `.composer-picker-menu-surface`, kept opaque here so the shared

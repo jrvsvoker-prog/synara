@@ -139,6 +139,7 @@ import {
   getChatTranscriptTextStyle,
   getChatTranscriptUserMessageLineHeightPx,
   getChatTranscriptUserMessageTextStyle,
+  CHAT_ELEVATED_CARD_SURFACE_CLASS_NAME,
   USER_MESSAGE_BUBBLE_RADIUS_CLASS_NAME,
   USER_MESSAGE_BUBBLE_SHELL_CHROME_CLASS_NAME,
   userMessageBubbleBorderClassName,
@@ -173,6 +174,12 @@ const MAX_VISIBLE_CHANGED_FILES = 5;
 const BOTTOM_CONTENT_INSET_PX = 64;
 const MESSAGE_HOVER_REVEAL_CLASS_NAME =
   "opacity-0 transition-opacity pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto";
+// Same rule as above, bound to the assistant row's own `group/assistant` marker (assistant
+// rows do not carry the bare `group` used by user messages). Turn-end actions rest hidden
+// so a scrolled transcript is text and nothing else; the row keeps its height either way,
+// so revealing them never shifts the message above.
+const ASSISTANT_ACTION_HOVER_REVEAL_CLASS_NAME =
+  "opacity-0 transition-opacity pointer-events-none group-hover/assistant:opacity-100 group-hover/assistant:pointer-events-auto group-focus-within/assistant:opacity-100 group-focus-within/assistant:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto";
 // How long a jumped-to message keeps its highlight tint before fading back out.
 const JUMP_HIGHLIGHT_DURATION_MS = 1200;
 const MARKER_FINE_SCROLL_RETRY_TIMEOUT_MS = 900;
@@ -1627,7 +1634,8 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                   ) : showUserText ? (
                     <div
                       className={cn(
-                        "w-max max-w-full min-w-0 self-end bg-[var(--app-user-message-background)]",
+                        "w-max max-w-full min-w-0 self-end",
+                        CHAT_ELEVATED_CARD_SURFACE_CLASS_NAME,
                         USER_MESSAGE_BUBBLE_RADIUS_CLASS_NAME,
                         userMessageBubbleBorderClass,
                         bubbleIsChipOnly
@@ -2163,8 +2171,13 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                   if (!turnSummary || row.assistantTurnInProgress) return null;
                   const checkpointFiles = turnSummary.files;
                   if (checkpointFiles.length === 0) return null;
+                  // Collapsed at rest. A settled turn's file list is reference material,
+                  // not something you read on the way past: expanded by default it put a
+                  // multi-row bordered table between every pair of messages and buried the
+                  // reply that follows it. The header row still carries the whole summary
+                  // (count + net diff stat), so nothing is hidden — only deferred a click.
                   const fileChangesExpanded =
-                    expandedFileChangesByTurnId[turnSummary.turnId] ?? true;
+                    expandedFileChangesByTurnId[turnSummary.turnId] ?? false;
                   const fileListExpanded = expandedFileListByTurnId[turnSummary.turnId] ?? false;
                   const checkpointTurnCount = turnSummary.checkpointTurnCount;
                   const checkpointTurnCounts =
@@ -2218,7 +2231,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                           className="size-4 shrink-0 text-[var(--color-text-foreground)] opacity-70 dark:opacity-80"
                         />
                         <span
-                          className="font-system-ui truncate font-normal text-[var(--color-text-foreground)] underline-offset-2 group-hover/file-row:underline group-focus-visible/file-row:underline"
+                          className="font-system-ui truncate font-normal text-foreground/74 underline-offset-2 group-hover/file-row:text-foreground group-hover/file-row:underline group-focus-visible/file-row:underline"
                           style={{ fontSize: chatTypographyStyle.fontSize }}
                         >
                           {file.path}
@@ -2235,52 +2248,67 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                     );
                   };
                   return (
-                    <div className="mt-2 mb-1 overflow-hidden rounded-[0.65rem] border border-[color:var(--color-border-light)] dark:border-[color:color-mix(in_srgb,var(--color-border-light)_55%,transparent)]">
+                    <div
+                      className={cn(
+                        "group/changed-files mt-2 mb-1 overflow-hidden rounded-[0.65rem] border border-[color:var(--color-border-light)] dark:border-[color:color-mix(in_srgb,var(--color-border-light)_55%,transparent)]",
+                        CHAT_ELEVATED_CARD_SURFACE_CLASS_NAME,
+                      )}
+                    >
+                      {/* One flat elevated card, like Cursor's "N Files Changed": the header
+                          is a row of the same surface, not a separate tinted band. */}
                       <div
                         className={cn(
-                          "flex items-center justify-between gap-3 bg-[color:color-mix(in_srgb,var(--app-user-message-background)_40%,transparent)] px-3 py-1.5",
+                          "flex items-center justify-between gap-3 px-3 py-1.5",
                           fileChangesExpanded &&
                             "border-b border-[color:var(--color-border-light)]",
                         )}
                       >
+                        {/* Count and net diff stat sit on ONE line: stacked, they turned a
+                            one-fact summary into a two-line block and forced the whole
+                            header to the height of a card even while collapsed. */}
                         <div className="flex min-w-0 items-center gap-2.5">
                           <ChangesIcon className="size-3.5 shrink-0 text-muted-foreground/70" />
-                          <div className="min-w-0">
-                            <div
-                              className="truncate font-normal text-foreground/92"
-                              style={{ fontSize: chatTypographyStyle.fontSize }}
-                            >
+                          <div
+                            className="flex min-w-0 items-center gap-2"
+                            style={{ fontSize: chatTypographyStyle.fontSize }}
+                          >
+                            {/* Tertiary, like Cursor's "N Files Changed" header — the
+                                filenames below carry the content weight. */}
+                            <span className="truncate font-normal text-foreground/60">
                               {editedFilesLabel}
-                            </div>
+                            </span>
                             {totalAdditions + totalDeletions > 0 ? (
-                              <div
-                                className="font-system-ui tabular-nums"
-                                style={{ fontSize: chatTypographyStyle.fontSize }}
-                              >
+                              <span className="font-system-ui shrink-0 tabular-nums">
                                 <DiffStatLabel
                                   additions={totalAdditions}
                                   deletions={totalDeletions}
                                 />
-                              </div>
+                              </span>
                             ) : null}
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
-                          {canUndo && (
-                            <button
-                              type="button"
-                              className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+                          {/* Undo and Review are per-turn escape hatches, not part of the
+                              summary — they surface on hover so a scrolled transcript shows
+                              one quiet line per turn instead of two buttons per turn. The
+                              chevron stays put so the row always advertises that it opens. */}
+                          <span className="flex items-center gap-2 opacity-0 transition-opacity group-hover/changed-files:opacity-100 group-focus-within/changed-files:opacity-100 motion-reduce:transition-none">
+                            {canUndo && (
+                              <button
+                                type="button"
+                                className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+                                style={{ fontSize: chatTypographyStyle.fontSize }}
+                                onClick={() => onUndoTurnFiles(checkpointTurnCounts)}
+                              >
+                                Undo
+                                <Undo2Icon className="size-3" />
+                              </button>
+                            )}
+                            <ReviewChangesButton
                               style={{ fontSize: chatTypographyStyle.fontSize }}
-                              onClick={() => onUndoTurnFiles(checkpointTurnCounts)}
-                            >
-                              Undo
-                              <Undo2Icon className="size-3" />
-                            </button>
-                          )}
-                          <ReviewChangesButton
-                            style={{ fontSize: chatTypographyStyle.fontSize }}
-                            onClick={() => onOpenTurnDiff(turnSummary.turnId)}
-                          />
+                              onClick={() => onOpenTurnDiff(turnSummary.turnId)}
+                            />
+                          </span>
                           <button
                             type="button"
                             className="inline-flex items-center justify-center rounded-md p-1 text-muted-foreground/70 transition-colors hover:bg-[var(--color-background-button-secondary-hover)] hover:text-foreground/80"
@@ -2344,22 +2372,30 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                   assistantCopyState.visible ||
                   assistantMeta.length > 0 ||
                   goalAchievement !== null) && (
-                  // Turn-end actions read Copy → Fork → Pin → time and stay visible at
-                  // rest: they belong to a settled turn, so hiding them behind hover made
-                  // the whole row feel undiscoverable. The leading button pulls left by
-                  // its own icon inset — (2em button − 1.125em glyph) / 2 — so the first
-                  // glyph, not the invisible hit area, aligns with the message text.
+                  // Turn-end actions read time → Copy → Fork → Pin, and rest hidden: the
+                  // transcript is the thing being read, and a persistent icon strip under
+                  // every reply competed with it. Time leads so the revealed cluster grows
+                  // rightward from the message's own left edge instead of shifting it.
                   <div
-                    className="mt-0.5 flex items-center gap-2 font-system-ui font-normal text-muted-foreground [&>button:first-child]:-ml-[0.4375em]"
+                    className="mt-0.5 flex items-center gap-2 font-system-ui font-normal text-muted-foreground"
                     style={chatMessageFooterStyle}
                   >
+                    {assistantMeta.length > 0 ? (
+                      <p className={cn("tabular-nums", ASSISTANT_ACTION_HOVER_REVEAL_CLASS_NAME)}>
+                        {assistantMeta}
+                      </p>
+                    ) : null}
                     {assistantCopyState.visible ? (
-                      <MessageCopyButton text={assistantCopyState.text ?? ""} />
+                      <MessageCopyButton
+                        text={assistantCopyState.text ?? ""}
+                        className={ASSISTANT_ACTION_HOVER_REVEAL_CLASS_NAME}
+                      />
                     ) : null}
                     {showForkAction ? (
                       <MessageActionButton
                         label="Fork thread from this turn"
                         tooltip="Fork from here"
+                        className={ASSISTANT_ACTION_HOVER_REVEAL_CLASS_NAME}
                         onClick={() => onForkFromMessage?.(row.message.id)}
                       >
                         <GitForkIcon className={MESSAGE_ACTION_ICON_CLASS_NAME} />
@@ -2367,19 +2403,21 @@ export const MessagesTimeline = memo(function MessagesTimeline({
                     ) : null}
                     {showPinToggle ? (
                       // Same Central pin glyph in both states — the darker tint is what
-                      // signals "this message is pinned".
+                      // signals "this message is pinned". A pinned message keeps its glyph
+                      // visible at rest, since that is durable state rather than an action.
                       <MessageActionButton
                         label={pinActionLabel("message", messagePinned)}
                         tooltip={messagePinned ? "Unpin from panel" : "Pin to panel"}
                         aria-pressed={messagePinned}
-                        className={messagePinned ? "text-foreground" : undefined}
+                        className={
+                          messagePinned
+                            ? "text-foreground"
+                            : ASSISTANT_ACTION_HOVER_REVEAL_CLASS_NAME
+                        }
                         onClick={() => onTogglePinMessage?.(row.message.id)}
                       >
                         <PinIcon className={MESSAGE_ACTION_ICON_CLASS_NAME} />
                       </MessageActionButton>
-                    ) : null}
-                    {assistantMeta.length > 0 ? (
-                      <p className="tabular-nums">{assistantMeta}</p>
                     ) : null}
                     {goalAchievement !== null ? (
                       // Divided off from the actions: the achieved goal is a durable fact
@@ -3123,7 +3161,8 @@ const UserMessageEditForm = memo(function UserMessageEditForm(props: {
   return (
     <form
       className={cn(
-        "w-full bg-[var(--app-user-message-background)]",
+        "w-full",
+        CHAT_ELEVATED_CARD_SURFACE_CLASS_NAME,
         USER_MESSAGE_BUBBLE_RADIUS_CLASS_NAME,
         props.borderClassName,
         USER_MESSAGE_BUBBLE_SHELL_CHROME_CLASS_NAME,

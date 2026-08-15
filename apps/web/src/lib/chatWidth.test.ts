@@ -11,7 +11,7 @@ describe("chatWidth", () => {
   });
 
   it("maps each mode to a chat column max width", () => {
-    expect(getChatWidthCssVariables("standard")["--app-chat-max-width"]).toBe("46rem");
+    expect(getChatWidthCssVariables("standard")["--app-chat-max-width"]).toBe("48rem");
     expect(getChatWidthCssVariables("wide")["--app-chat-max-width"]).toBe("72rem");
     expect(getChatWidthCssVariables("full")["--app-chat-max-width"]).toBe("100%");
   });

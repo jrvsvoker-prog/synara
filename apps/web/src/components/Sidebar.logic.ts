@@ -529,15 +529,17 @@ export function pruneProjectThreadListPagingForCollapsedProjects<
  * trailing cluster, sized to what the slot ACTUALLY shows so the title runs as
  * far right as the on-screen content allows:
  *
- * - The relative time now lives in the row hover card, so an idle row with no
- *   status/jump glyph and no meta chips reserves almost nothing — the title runs
- *   to the row edge instead of truncating against permanently reserved space.
- * - A status/loader (or keyboard-jump) glyph occupies a ~2.25rem slot, and each
+ * - Every row now ends in a relative time ("22h", "3d"), so the base reserve is
+ *   never zero: it starts at the width of that label and grows from there.
+ * - A status/loader (or keyboard-jump) glyph occupies a ~1.75rem slot, and each
  *   fork/worktree/handoff meta chip adds width; the reserve grows only for the
  *   badges that are present.
  * - The wider reserve that clears the hover pin/archive actions is applied only
  *   on hover/focus (mirroring the project header row), so the title gives up that
- *   width exactly when those actions appear and not a moment sooner.
+ *   width exactly when those actions appear and not a moment sooner. It is held at
+ *   or above the resting reserve in every branch — a hover reserve NARROWER than
+ *   the resting one would widen the title at the moment the actions appear, which
+ *   reads as the row twitching under the pointer.
  *
  * Literal class strings are required so Tailwind's JIT scanner emits them.
  */
@@ -545,21 +547,32 @@ export function resolveThreadRowTrailingReserveClass(input: {
   metaChipCount: number;
   hasTrailingGlyph: boolean;
 }): string {
-  // Hover/focus reveals the pin/archive actions; the meta chips + glyph fade out
-  // at the same time, so the hover reserve is constant regardless of rest content.
+  const hoverTransition = "transition-[padding] duration-150 ease-out";
   const hoverReserve =
-    "transition-[padding] duration-150 ease-out group-hover/thread-row:pr-[4.75rem] group-focus-within/thread-row:pr-[4.75rem]";
+    "group-hover/thread-row:pr-[4.75rem] group-focus-within/thread-row:pr-[4.75rem]";
   const { metaChipCount, hasTrailingGlyph } = input;
   if (metaChipCount <= 0) {
-    return cn(hasTrailingGlyph ? "pr-[1.75rem]" : "pr-2", hoverReserve);
+    return cn(hasTrailingGlyph ? "pr-[3.5rem]" : "pr-[2.25rem]", hoverTransition, hoverReserve);
   }
   if (metaChipCount === 1) {
-    return cn(hasTrailingGlyph ? "pr-[3rem]" : "pr-[1.75rem]", hoverReserve);
+    return cn(hasTrailingGlyph ? "pr-[4.75rem]" : "pr-[3.5rem]", hoverTransition, hoverReserve);
   }
   if (metaChipCount === 2) {
-    return cn(hasTrailingGlyph ? "pr-[4rem]" : "pr-[3rem]", hoverReserve);
+    return cn(
+      hasTrailingGlyph ? "pr-[5.75rem]" : "pr-[4.75rem]",
+      hoverTransition,
+      hasTrailingGlyph
+        ? "group-hover/thread-row:pr-[5.75rem] group-focus-within/thread-row:pr-[5.75rem]"
+        : hoverReserve,
+    );
   }
-  return cn(hasTrailingGlyph ? "pr-[4.5rem]" : "pr-[4.25rem]", hoverReserve);
+  return cn(
+    hasTrailingGlyph ? "pr-[6.25rem]" : "pr-[6rem]",
+    hoverTransition,
+    hasTrailingGlyph
+      ? "group-hover/thread-row:pr-[6.25rem] group-focus-within/thread-row:pr-[6.25rem]"
+      : "group-hover/thread-row:pr-[6rem] group-focus-within/thread-row:pr-[6rem]",
+  );
 }
 
 export function resolveThreadRowClassName(input: {

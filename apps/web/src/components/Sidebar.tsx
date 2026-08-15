@@ -597,6 +597,23 @@ const THREAD_ROW_META_CHIP_HOVER_FADE_CLASS_NAME = cn(
 );
 
 /** Status glyph slot; matches the 15px meta-chip column so trailing icons stay compact. */
+/**
+ * Trailing relative-time label ("16h", "3d") for a thread row. It shares the status
+ * slot's typography and hover-reveal rule so the row reads as one trailing column and
+ * the hover action toolbar replaces the whole cluster rather than stacking on it.
+ * Unlike the status glyph this carries a readable secondary tone — it is the row's
+ * only recency signal, so fading it to the glyph's weight would make it decorative.
+ */
+function threadRowTimeLabelClassName(isSubagentThread: boolean): string {
+  return cn(
+    "shrink-0 text-right leading-none tabular-nums",
+    sidebarHoverRevealHideClassName("thread-row"),
+    isSubagentThread
+      ? "text-[10px] text-muted-foreground/42"
+      : "text-[length:calc(var(--app-font-size-ui-meta,11px)+0.5px)] text-muted-foreground/65",
+  );
+}
+
 function threadRowStatusSlotClassName(isSubagentThread: boolean, toneClassName?: string): string {
   return cn(
     "flex w-[15px] shrink-0 items-center justify-center leading-none tabular-nums",
@@ -4212,6 +4229,8 @@ export default function Sidebar() {
     rightMetaChips: ThreadMetaChip[];
     threadStatus: ReturnType<typeof resolveThreadStatusForSidebar>;
     timestampToneClassName?: string;
+    /** Compact relative time ("16h", "3d") shown at the row's trailing edge. */
+    timeLabel?: string | null;
     hoverActions: ReactNode;
   }) {
     // The jump shortcut owns the slot while it is visible; otherwise the shared
@@ -4235,9 +4254,6 @@ export default function Sidebar() {
           </KbdGroup>
         ) : null}
         {trailingStatus ? (
-          // The relative time now lives in the row hover card, so the trailing
-          // slot only carries the live status/loader glyph; when idle it
-          // collapses and the hover action icons sit flush at the end.
           <span
             title={trailingStatus.label}
             className={threadRowStatusSlotClassName(
@@ -4246,6 +4262,13 @@ export default function Sidebar() {
             )}
           >
             <SidebarStatusTrailingGlyph status={trailingStatus} />
+          </span>
+        ) : null}
+        {input.timeLabel && !input.threadJumpLabel ? (
+          // Recency sits at the trailing edge, after any live status glyph. The jump
+          // shortcut owns the whole slot while visible, so the two never stack.
+          <span className={threadRowTimeLabelClassName(input.isSubagentThread)}>
+            {input.timeLabel}
           </span>
         ) : null}
         {input.hoverActions}
@@ -4492,6 +4515,7 @@ export default function Sidebar() {
                 rightMetaChips,
                 threadStatus,
                 timestampToneClassName: "text-muted-foreground/38",
+                timeLabel: formatRelativeTime(thread.updatedAt ?? thread.createdAt),
                 hoverActions: renderThreadHoverActions({
                   threadId: thread.id,
                   toneClassName: "text-muted-foreground/42",
@@ -4591,7 +4615,8 @@ export default function Sidebar() {
                   }),
                   leadingPrStatus ? "pl-8" : topLevel && !isSubagentThread ? "pl-2" : null,
                   isSubagentThread
-                    ? "pr-7.5"
+                    ? // Wide enough for the subagent row's own 10px time label.
+                      "pr-[3.5rem]"
                     : resolveThreadRowTrailingReserveClass({
                         metaChipCount: showCompactMeta ? rightMetaChips.length : 0,
                         hasTrailingGlyph: Boolean(threadStatus) || Boolean(threadJumpLabel),
@@ -4691,6 +4716,7 @@ export default function Sidebar() {
                     ? "text-foreground/38 dark:text-foreground/46"
                     : "text-muted-foreground/24"
                   : secondaryMetaClass,
+                timeLabel: formatRelativeTime(thread.updatedAt ?? thread.createdAt),
                 hoverActions: renderThreadHoverActions({
                   threadId: thread.id,
                   toneClassName: secondaryMetaClass,

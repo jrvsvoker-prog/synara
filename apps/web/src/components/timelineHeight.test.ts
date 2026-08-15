@@ -10,9 +10,27 @@ import { appendTerminalContextsToPrompt } from "../lib/terminalContext";
 import { buildInlineTerminalContextText } from "./chat/userMessageTerminalContexts";
 import {
   estimateChangedFilesSummaryHeight,
-  estimateTimelineMessageHeight,
+  estimateTimelineMessageHeight as estimateTimelineMessageHeightAtSetting,
   estimateTimelineWorkGroupHeight,
 } from "./timelineHeight";
+
+// These are geometry assertions about the sizing rules, so they pin the font size rather
+// than inheriting DEFAULT_CHAT_FONT_SIZE_PX: moving the app's default text size is a
+// settings decision and must not silently rewrite what the estimator is expected to
+// produce. Callers that need a different size still pass their own `chatFontSizePx`.
+const ESTIMATE_FONT_SIZE_PX = 12;
+
+function estimateTimelineMessageHeight(
+  message: Parameters<typeof estimateTimelineMessageHeightAtSetting>[0],
+  layout: Parameters<typeof estimateTimelineMessageHeightAtSetting>[1] = {
+    timelineWidthPx: null,
+  },
+): number {
+  return estimateTimelineMessageHeightAtSetting(message, {
+    chatFontSizePx: ESTIMATE_FONT_SIZE_PX,
+    ...layout,
+  });
+}
 
 describe("estimateTimelineMessageHeight", () => {
   it("keeps browser annotations to one estimated row regardless of their count", () => {

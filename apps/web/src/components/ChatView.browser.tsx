@@ -7271,7 +7271,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
             "[data-timeline-row-kind='message'][data-message-role='assistant']",
           ) as HTMLElement | null;
           expect(row).not.toBeNull();
-          expect(row?.className ?? "").toContain("max-w-[var(--app-chat-max-width,46rem)]");
+          expect(row?.className ?? "").toContain("max-w-[var(--app-chat-max-width,48rem)]");
           expect(getComputedStyle(row!).maxWidth).toBe("1152px"); // 72rem at 16px root
         },
         { timeout: 8_000, interval: 16 },

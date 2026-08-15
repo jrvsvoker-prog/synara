@@ -9,7 +9,10 @@ const DENSITY_SCALE_BY_MODE: Record<UiDensity, number> = {
   spacious: 1.15,
 };
 
-const BASE_ROW_HEIGHT_REM = 1.75;
+// 30px at the comfortable default. Sidebar rows carry 13px labels, and 28px left the
+// label optically wedged between its own row and the next one; 30px restores the small
+// band of air above and below the text without turning the list into a spacious menu.
+const BASE_ROW_HEIGHT_REM = 1.875;
 const BASE_ROW_PADDING_Y_REM = 0.125;
 const BASE_ROW_GAP_REM = 0.5;
 const BASE_SETTINGS_ROW_PADDING_Y_REM = 0.625;

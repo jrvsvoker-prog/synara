@@ -10,12 +10,13 @@ export const DEFAULT_CHAT_WIDTH: ChatWidthMode = "standard";
 
 /**
  * Max width applied to the centered chat column (transcript + composer).
- * - standard: the historical 46rem reading column.
+ * - standard: a 48rem reading column — a comfortable measure for prose at the
+ *   default chat font size without letting code blocks and tables feel cramped.
  * - wide: a roomier 72rem column for dense content like tables.
  * - full: let the column grow to the full available window width.
  */
 const CHAT_MAX_WIDTH_BY_MODE: Record<ChatWidthMode, string> = {
-  standard: "46rem",
+  standard: "48rem",
   wide: "72rem",
   full: "100%",
 };

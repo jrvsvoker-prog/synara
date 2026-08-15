@@ -158,13 +158,28 @@ const WARNING_COLOR_BY_VARIANT: Record<ThemeVariant, string> = {
   dark: "#f5b44a",
   light: "#d97706",
 };
+// Light panel (cards/popovers, and the composer glass they feed) sits on Cursor's
+// elevated near-white (#fcfcfc over the #f7f6f6 page), not a faint tint of the page.
 const PANEL_BASE_ALPHA: Record<ThemeVariant, number> = {
   dark: 0.03,
-  light: 0.18,
+  light: 0.63,
 };
 const PANEL_CONTRAST_STEP: Record<ThemeVariant, number> = {
   dark: 0.03,
   light: 0.008,
+};
+// The sidebar is the one chrome surface that sits a step BACK from the content: the
+// route card reads as the lit working area and the sidebar as the quieter shelf beside
+// it (see buildSidebarSurface). Light tints toward the theme ink, dark toward black, so
+// the step reads as "recessed" in both. Keep it small — this is a material difference,
+// not a divider; the seam line in index.css still does the edge work.
+// Values reproduce the sidebar/page pair of Cursor's agent (glass) window, measured from
+// a light-mode capture and the dark hardcodes in workbench.glass.main.css: #efefef over
+// #f7f6f6 in light, #0c0e11 (--cursor-bg-primary) over #14171d (--cursor-bg-secondary)
+// in dark.
+const SIDEBAR_TINT_ALPHA: Record<ThemeVariant, number> = {
+  dark: 0.4,
+  light: 0.034,
 };
 const CODE_THEME_SEED_PATCH_METADATA: Partial<
   Record<string, Partial<Record<ThemeVariant, CodeThemeSeedPatchMetadata>>>
@@ -185,6 +200,10 @@ const CODE_THEME_SEED_PATCH_METADATA: Partial<
   },
   proof: {
     light: { fonts: { code: true, ui: true }, opaqueWindows: true },
+  },
+  quiet: {
+    dark: { opaqueWindows: true },
+    light: { opaqueWindows: true },
   },
   raycast: {
     dark: { fonts: { code: true, ui: true }, opaqueWindows: true },
@@ -226,6 +245,7 @@ export const CODE_THEME_OPTIONS: readonly CodeThemeOption[] = [
   { id: "one", label: "One", variants: ["light", "dark"] },
   { id: "oscurange", label: "Oscurange", variants: ["dark"] },
   { id: "proof", label: "Proof", variants: ["light"] },
+  { id: "quiet", label: "Quiet", variants: ["light", "dark"] },
   { id: "raycast", label: "Raycast", variants: ["light", "dark"] },
   { id: "rose-pine", label: "Rose Pine", variants: ["light", "dark"] },
   { id: "sentry", label: "Sentry", variants: ["dark"] },
@@ -236,43 +256,45 @@ export const CODE_THEME_OPTIONS: readonly CodeThemeOption[] = [
   { id: "vscode-plus", label: "VS Code Plus", variants: ["light", "dark"] },
 ] as const;
 
+// Fallback chrome used before a seed resolves (and for unparsable stored themes).
+// Kept in step with the "quiet" seed so the pre-theme paint matches the shipped default.
 export const DEFAULT_CHROME_THEME_BY_VARIANT: Record<ThemeVariant, ChromeTheme> = {
   dark: {
-    accent: "#339cff",
+    accent: "#81a1c1",
     contrast: 0,
     fonts: { code: null, ui: null },
-    ink: "#ffffff",
-    opaqueWindows: false,
+    ink: "#f0f0f0",
+    opaqueWindows: true,
     semanticColors: {
-      diffAdded: "#40c977",
-      diffRemoved: "#fa423e",
-      skill: "#ad7bf9",
+      diffAdded: "#3fa266",
+      diffRemoved: "#e34671",
+      skill: "#b09ce0",
     },
-    surface: "#181818",
+    surface: "#14171d",
   },
   light: {
-    accent: "#339cff",
+    accent: "#0064b0",
     contrast: 0,
     fonts: { code: null, ui: null },
-    ink: "#1a1c1f",
-    opaqueWindows: false,
+    ink: "#141414",
+    opaqueWindows: true,
     semanticColors: {
-      diffAdded: "#00a240",
-      diffRemoved: "#ba2623",
-      skill: "#924ff7",
+      diffAdded: "#007041",
+      diffRemoved: "#be1744",
+      skill: "#7565cc",
     },
-    surface: "#ffffff",
+    surface: "#f7f6f6",
   },
 };
 
 export const DEFAULT_THEME_STATE: ThemeState = {
   chromeThemes: {
-    dark: getCodeThemeSeed("codex", "dark"),
-    light: getCodeThemeSeed("codex", "light"),
+    dark: getCodeThemeSeed("quiet", "dark"),
+    light: getCodeThemeSeed("quiet", "light"),
   },
   codeThemeIds: {
-    dark: "codex",
-    light: "codex",
+    dark: "quiet",
+    light: "quiet",
   },
   systemUiFont: true,
   mode: "system",
@@ -701,12 +723,11 @@ export function buildThemeCssVariables(
       ? "translucent"
       : "opaque";
   const warningColor = WARNING_COLOR_BY_VARIANT[variant];
-  // Codex paints the app sidebar with the PRIMARY surface (--color-background-surface,
-  // mapped through --color-token-side-bar-background), not the darker "under" surface.
-  // The under-surface is reserved for the window body behind the content (see
-  // --app-shell-background / --background). Sourcing the sidebar from the primary
-  // surface keeps its pure color matching Codex in both light and dark.
-  const sidebarSurface = readCodexVariable("--color-background-surface");
+  // The sidebar sits one recessed step behind the primary surface the route card is
+  // painted with, so the working area reads as the lit surface and the sidebar as the
+  // shelf beside it. The "under" surface stays reserved for the window body behind the
+  // content (see --app-shell-background / --background).
+  const sidebarSurface = buildSidebarSurface(pack.theme, variant);
   const settingsSurface = readCodexVariable("--color-background-surface");
   const composerSurface =
     variant === "dark"
@@ -789,7 +810,7 @@ export function buildThemeCssVariables(
     "--ring": readCodexVariable("--color-border-focus"),
     "--secondary": readCodexVariable("--color-background-button-secondary"),
     "--secondary-foreground": readCodexVariable("--color-text-button-secondary"),
-    "--sidebar": readCodexVariable("--color-background-surface"),
+    "--sidebar": sidebarSurface,
     "--sidebar-accent": readCodexVariable("--color-background-button-secondary-hover"),
     "--sidebar-accent-active": readCodexVariable("--color-background-button-secondary-hover"),
     "--sidebar-accent-foreground": readCodexVariable("--color-text-foreground"),
@@ -1068,9 +1089,14 @@ function getRequiredVariable(variables: Record<string, string>, name: string): s
 
 function buildLightDerivedTokens(theme: ReturnType<typeof buildComputedTheme>) {
   // Mirrors Codex Electron's light chrome derivation from chrome-theme-C3NmvE0H.js.
-  const controlBase = mixRgb(theme.surface, WHITE, 0.09 + theme.contrast * 0.04);
+  // Control base runs much whiter than Codex's 0.09: Cursor's agent window paints the
+  // composer/input cards as an elevated near-white surface over the gray page
+  // (#fcfcfc over #f7f6f6). 0.65 reproduces that pair at zero contrast.
+  const controlBase = mixRgb(theme.surface, WHITE, 0.65 + theme.contrast * 0.04);
   const elevatedSecondaryBase = mixRgb(theme.surface, WHITE, 0.08 + theme.contrast * 0.08);
-  const elevatedPrimaryBase = mixRgb(theme.surface, WHITE, 0.16 + theme.contrast * 0.12);
+  // Elevated primary (popovers, menus, the composer glass) is Cursor's near-white
+  // card: #fcfcfc over the #f7f6f6 page at zero seed contrast.
+  const elevatedPrimaryBase = mixRgb(theme.surface, WHITE, 0.71 + theme.contrast * 0.12);
 
   return {
     accentBackground: mixHex(theme.theme.surface, theme.theme.accent, 0.11 + theme.contrast * 0.04),
@@ -1087,9 +1113,18 @@ function buildLightDerivedTokens(theme: ReturnType<typeof buildComputedTheme>) {
     // Light borders run slightly stronger than Codex's base derivation so the chat
     // seam (--color-border) and chat/header dividers (--color-border-light) read
     // clearly on white surfaces. Keep the bump small; don't exceed borderHeavy.
-    border: formatRgba(theme.ink, 0.09 + theme.contrast * 0.04),
+    // Bases are set so the zero-contrast result reproduces Cursor's own neutral scale over
+    // the theme ink. Cursor's agent shell derives every neutral from the editor foreground
+    // (workbench.glass.main.css): stroke-quaternary 4%, tertiary 8%, secondary 12%,
+    // primary 20%. `border` is that stroke-tertiary step; `borderHeavy` is stroke-secondary.
+    border: formatRgba(theme.ink, 0.101 + theme.contrast * 0.04),
     borderFocus: theme.theme.accent,
-    borderHeavy: formatRgba(theme.ink, 0.09 + theme.contrast * 0.06),
+    // `borderHeavy` must outweigh `border` at every contrast, the way the dark
+    // derivation already does. Sharing the `border` base made it come out LIGHTER than
+    // `border` below the contrast baseline (the steeper multiplier works against it
+    // while the normalized contrast is negative), which left the composer outline —
+    // its main consumer — almost invisible on a light surface.
+    borderHeavy: formatRgba(theme.ink, 0.152 + theme.contrast * 0.06),
     borderLight: formatRgba(theme.ink, 0.07 + theme.contrast * 0.02),
     buttonPrimaryBackground: theme.theme.ink,
     buttonPrimaryBackgroundActive: formatRgba(theme.ink, 0.1 + theme.contrast * 0.12),
@@ -1097,7 +1132,9 @@ function buildLightDerivedTokens(theme: ReturnType<typeof buildComputedTheme>) {
     buttonPrimaryBackgroundInactive: formatRgba(theme.ink, 0.18 + theme.contrast * 0.14),
     buttonSecondaryBackground: formatRgba(theme.ink, 0.04),
     buttonSecondaryBackgroundActive: formatRgba(theme.ink, 0.03 + theme.contrast * 0.02),
-    buttonSecondaryBackgroundHover: formatRgba(theme.ink, 0.04),
+    // Sidebar hover and the selected row both resolve through this token. 0.08 is Cursor's
+    // bg-tertiary step — at 0.04 a selected thread barely separated from the surface.
+    buttonSecondaryBackgroundHover: formatRgba(theme.ink, 0.08),
     buttonSecondaryBackgroundInactive: formatRgba(theme.ink, 0.01 + theme.contrast * 0.02),
     buttonTertiaryBackground: formatRgba(theme.ink, 0),
     buttonTertiaryBackgroundActive: formatRgba(theme.ink, 0.16 + theme.contrast * 0.08),
@@ -1110,32 +1147,47 @@ function buildLightDerivedTokens(theme: ReturnType<typeof buildComputedTheme>) {
     elevatedSecondaryOpaque: formatOpaqueRgb(elevatedSecondaryBase),
     iconAccent: theme.theme.accent,
     iconPrimary: theme.theme.ink,
-    iconSecondary: formatRgba(theme.ink, 0.65 + theme.contrast * 0.1),
-    iconTertiary: formatRgba(theme.ink, 0.45 + theme.contrast * 0.1),
+    // Icons ride the same neutral scale as text: Cursor draws glyph and label at one
+    // weight, so a secondary icon next to a secondary label must not read lighter.
+    iconSecondary: formatRgba(theme.ink, 0.7935 + theme.contrast * 0.1),
+    iconTertiary: formatRgba(theme.ink, 0.6525 + theme.contrast * 0.1),
     simpleScrim: formatRgba(BLACK, 0.08 + theme.contrast * 0.04),
     textAccent: theme.theme.accent,
     textButtonPrimary: theme.theme.surface,
     textButtonSecondary: theme.theme.ink,
-    textButtonTertiary: formatRgba(theme.ink, 0.45 + theme.contrast * 0.1),
+    textButtonTertiary: formatRgba(theme.ink, 0.6525 + theme.contrast * 0.1),
     textForeground: theme.theme.ink,
-    textForegroundSecondary: formatRgba(theme.ink, 0.65 + theme.contrast * 0.1),
-    textForegroundTertiary: formatRgba(theme.ink, 0.45 + theme.contrast * 0.1),
+    // 0.741 at zero contrast — Cursor's descriptionForeground / sideBar.foreground
+    // (#141414BD). The old 0.598 pushed every secondary label toward the surface, which is
+    // why timestamps and section headings needed per-site opacity nudges to stay legible.
+    textForegroundSecondary: formatRgba(theme.ink, 0.7935 + theme.contrast * 0.1),
+    // 0.60 at zero contrast — Cursor text-tertiary. At 0.45 the third step sat closer to
+    // the surface than to its own scale, so tertiary labels read as disabled.
+    textForegroundTertiary: formatRgba(theme.ink, 0.6525 + theme.contrast * 0.1),
   };
 }
 
 function buildDarkDerivedTokens(theme: ReturnType<typeof buildComputedTheme>) {
   // Mirrors Codex Electron's dark chrome derivation from chrome-theme-C3NmvE0H.js.
-  const controlBase = mixRgb(theme.surface, theme.ink, 0.06 + theme.contrast * 0.05);
+  // 0.077 lands the control/composer surface on Cursor's --cursor-bg-elevated (#1b1f27
+  // over the #14171d page) at zero seed contrast (the normalized contrast term is
+  // negative there, so the effective mix is ~0.04).
+  const controlBase = mixRgb(theme.surface, theme.ink, 0.077 + theme.contrast * 0.05);
   const focusBase = mixRgb(theme.accent, WHITE, 0.3 + theme.contrast * 0.15);
-  const elevatedPrimaryBase = mixRgb(theme.surface, theme.ink, 0.08 + theme.contrast * 0.08);
+  // Elevated primary (popovers, menus, the composer glass) sits on Cursor's
+  // --cursor-bg-elevated step (#1b1f27 over the #14171d page) at zero seed contrast.
+  const elevatedPrimaryBase = mixRgb(theme.surface, theme.ink, 0.1 + theme.contrast * 0.08);
 
   return {
     accentBackground: mixHex("#000000", theme.theme.accent, 0.2 + theme.contrast * 0.08),
     accentBackgroundActive: mixHex("#000000", theme.theme.accent, 0.22 + theme.contrast * 0.12),
     accentBackgroundHover: mixHex("#000000", theme.theme.accent, 0.21 + theme.contrast * 0.1),
-    border: formatRgba(theme.ink, 0.1 + theme.contrast * 0.04),
+    // One scale for both variants, matching Cursor's agent shell: it derives every neutral
+    // from the editor foreground with the same percentages in light and dark. 0.08 at zero
+    // contrast is stroke-tertiary; borderHeavy below is stroke-secondary (0.12).
+    border: formatRgba(theme.ink, 0.108 + theme.contrast * 0.04),
     borderFocus: formatRgba(focusBase, 0.7 + theme.contrast * 0.1),
-    borderHeavy: formatRgba(theme.ink, 0.16 + theme.contrast * 0.06),
+    borderHeavy: formatRgba(theme.ink, 0.162 + theme.contrast * 0.06),
     borderLight: formatRgba(theme.ink, 0.06 + theme.contrast * 0.02),
     // High-contrast primary button (white-on-dark) mirroring the light-mode
     // derivation (bg = ink, text = surface). Intentionally diverges from Codex
@@ -1146,7 +1198,8 @@ function buildDarkDerivedTokens(theme: ReturnType<typeof buildComputedTheme>) {
     buttonPrimaryBackgroundInactive: formatRgba(theme.ink, 0.02 + theme.contrast * 0.02),
     buttonSecondaryBackground: formatRgba(theme.ink, 0.04 + theme.contrast * 0.02),
     buttonSecondaryBackgroundActive: formatRgba(theme.ink, 0.09 + theme.contrast * 0.05),
-    buttonSecondaryBackgroundHover: formatRgba(theme.ink, 0.06 + theme.contrast * 0.03),
+    // 0.08 at zero contrast — Cursor's bg-tertiary, the fill behind a hovered list row.
+    buttonSecondaryBackgroundHover: formatRgba(theme.ink, 0.101 + theme.contrast * 0.03),
     buttonSecondaryBackgroundInactive: formatRgba(theme.ink, 0.02 + theme.contrast * 0.03),
     buttonTertiaryBackground: formatRgba(theme.ink, 0.02 + theme.contrast * 0.015),
     buttonTertiaryBackgroundActive: formatRgba(theme.ink, 0.07 + theme.contrast * 0.05),
@@ -1163,18 +1216,21 @@ function buildDarkDerivedTokens(theme: ReturnType<typeof buildComputedTheme>) {
     ),
     iconAccent: formatOpaqueRgb(focusBase),
     iconPrimary: formatRgba(theme.ink, 0.82 + theme.contrast * 0.14),
-    iconSecondary: formatRgba(theme.ink, 0.65 + theme.contrast * 0.1),
-    iconTertiary: formatRgba(theme.ink, 0.45 + theme.contrast * 0.1),
+    // Same neutral scale as the light derivation (see there): 0.74 / 0.60 at zero contrast.
+    iconSecondary: formatRgba(theme.ink, 0.811 + theme.contrast * 0.1),
+    iconTertiary: formatRgba(theme.ink, 0.67 + theme.contrast * 0.1),
     simpleScrim: formatRgba(theme.ink, 0.08 + theme.contrast * 0.04),
     // Codex brightens dark accent affordances through the same focus mix used
     // for the border, rather than using the raw accent directly.
     textAccent: formatOpaqueRgb(focusBase),
     textButtonPrimary: theme.theme.surface,
     textButtonSecondary: mixHex(theme.theme.ink, theme.theme.surface, 0.7 + theme.contrast * 0.1),
-    textButtonTertiary: formatRgba(theme.ink, 0.45 + theme.contrast * 0.1),
+    textButtonTertiary: formatRgba(theme.ink, 0.67 + theme.contrast * 0.1),
     textForeground: theme.theme.ink,
-    textForegroundSecondary: formatRgba(theme.ink, 0.65 + theme.contrast * 0.1),
-    textForegroundTertiary: formatRgba(theme.ink, 0.42 + theme.contrast * 0.13),
+    // Matches the light derivation: 0.741 at zero contrast, Cursor's sideBar.foreground
+    // (#F0F0F0BD) on the dark theme.
+    textForegroundSecondary: formatRgba(theme.ink, 0.811 + theme.contrast * 0.1),
+    textForegroundTertiary: formatRgba(theme.ink, 0.691 + theme.contrast * 0.13),
   };
 }
 
@@ -1191,6 +1247,13 @@ function buildSurfaceUnder(
   return variant === "light"
     ? mixHex(formatHex(surface), formatHex(ink), mixAmount)
     : mixHex(formatHex(surface), "#000000", mixAmount);
+}
+
+function buildSidebarSurface(theme: ChromeTheme, variant: ThemeVariant): string {
+  // Light recedes toward the theme ink (a warm-neutral gray rather than a flat dim);
+  // dark recedes toward black, because mixing toward a light ink would raise it instead.
+  const anchor = variant === "light" ? theme.ink : "#000000";
+  return mixHex(theme.surface, anchor, SIDEBAR_TINT_ALPHA[variant]);
 }
 
 function buildPanelBackground(theme: ReturnType<typeof buildComputedTheme>): string {

@@ -1,6 +1,6 @@
 // FILE: SidebarActivityView.tsx
-// Purpose: Task-feed sidebar surface — every thread is a 2-line task row
-//          (provider + title / project + branch) grouped by status, with settle.
+// Purpose: Task-feed sidebar surface — every thread is a single-line task row
+//          (provider + title + state + relative time) grouped by status, with settle.
 // Layer: Sidebar UI component
 // Exports: SidebarActivityView
 
@@ -20,7 +20,6 @@ import { resolveThreadEnvironmentMode } from "@synara/shared/threadEnvironment";
 import {
   AddPlusIcon,
   CircleCheckIcon,
-  GitBranchIcon,
   NewThreadIcon,
   SortIcon,
   Undo2Icon,
@@ -30,21 +29,21 @@ import { cn } from "~/lib/utils";
 import {
   SIDEBAR_ROW_ACTIVE_CLASS_NAME,
   SIDEBAR_ROW_FOCUS_CLASS_NAME,
+  SIDEBAR_ROW_HEIGHT_CLASS_NAME,
   SIDEBAR_ROW_HOVER_CLASS_NAME,
   SIDEBAR_ROW_LABEL_TEXT_CLASS_NAME,
   SIDEBAR_SECTION_LABEL_CLASS_NAME,
   sidebarHoverRevealHideClassName,
 } from "../sidebarRowStyles";
 import { resolveThreadPullRequestFallback } from "../hooks/useThreadPullRequests";
+import { formatRelativeTime } from "../lib/relativeTime";
 import type { Project, SidebarThreadSummary } from "../types";
 import { ComposerPickerMenuPopup } from "./chat/ComposerPickerMenuPopup";
-import { FolderClosed } from "./FolderClosed";
 import { ProviderIcon } from "./ProviderIcon";
 import { PrStateChip } from "./pullRequest/PrStateChip";
 import {
   createSidebarThreadHoverAnchorId,
   resolveSidebarThreadListPaging,
-  resolveThreadDisplayBranch,
   resolveThreadProjectLabel,
   resolveThreadStatusTrailingIndicator,
   type ThreadStatusPill,
@@ -101,7 +100,6 @@ function stopRowActivation(event: MouseEvent) {
 
 function ActivityThreadRow({
   thread,
-  project,
   isActive,
   isSettled,
   isPinned,
@@ -117,7 +115,6 @@ function ActivityThreadRow({
   renderHoverCard,
 }: {
   thread: SidebarThreadSummary;
-  project: Project | undefined;
   isActive: boolean;
   isSettled: boolean;
   isPinned: boolean;
@@ -133,13 +130,11 @@ function ActivityThreadRow({
   renderHoverCard: (anchorId: string) => ReactNode;
 }) {
   const provider = thread.session?.provider ?? thread.modelSelection.provider;
-  const branch = resolveThreadDisplayBranch(thread);
   const isWorktree =
     resolveThreadEnvironmentMode({
       envMode: thread.envMode,
       worktreePath: thread.worktreePath,
     }) === "worktree";
-  const ProjectGlyph = isWorktree ? WorktreeIcon : FolderClosed;
   const hoverAnchorId = createSidebarThreadHoverAnchorId({
     scope: "activity",
     threadId: thread.id,
@@ -177,51 +172,50 @@ function ActivityThreadRow({
           onClick={onOpen}
           data-testid={`activity-thread-${thread.id}`}
           className={cn(
-            "flex w-full min-w-0 cursor-pointer flex-col gap-1 rounded-lg px-2.5 py-2 text-left select-none",
+            "flex w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1 text-left select-none",
+            SIDEBAR_ROW_HEIGHT_CLASS_NAME,
             SIDEBAR_ROW_FOCUS_CLASS_NAME,
             isActive ? SIDEBAR_ROW_ACTIVE_CLASS_NAME : SIDEBAR_ROW_HOVER_CLASS_NAME,
             isSettled && "opacity-55 transition-opacity hover:opacity-85",
           )}
         >
+          {/* One line per thread. The project name and full branch used to occupy a second
+              line under every title, doubling the list's height to restate context the
+              reader already has (they picked the project) — both now live in the row's
+              hover card. What survives inline is state you cannot infer: the provider, an
+              open PR, a worktree, and how long ago the thread moved. */}
+          <ProviderIcon
+            provider={provider}
+            className="size-3 shrink-0"
+            fallback={
+              <span className="size-3 shrink-0 rounded-full border border-dashed border-muted-foreground/40" />
+            }
+          />
           <span
             className={cn(
-              "flex min-w-0 items-center gap-1.5 overflow-hidden pr-5 transition-[padding] duration-150 ease-out",
-              // Yield the title row to the hover action cluster (pin + archive + done).
-              "group-hover/activity-row:pr-[4.25rem] group-focus-within/activity-row:pr-[4.25rem]",
+              "min-w-0 flex-1 truncate text-[length:var(--app-font-size-ui,12px)] leading-5 font-normal",
+              isActive ? "text-foreground" : SIDEBAR_ROW_LABEL_TEXT_CLASS_NAME,
             )}
           >
-            <ProviderIcon
-              provider={provider}
-              className="size-3 shrink-0"
-              fallback={
-                <span className="size-3 shrink-0 rounded-full border border-dashed border-muted-foreground/40" />
-              }
-            />
-            <span
-              className={cn(
-                "min-w-0 shrink truncate text-[length:var(--app-font-size-ui,12px)] leading-5 font-normal",
-                isActive ? "text-foreground" : SIDEBAR_ROW_LABEL_TEXT_CLASS_NAME,
-              )}
-            >
-              {thread.title}
-            </span>
+            {thread.title}
           </span>
-          <span className="flex min-w-0 items-center gap-1.5">
-            <ProjectGlyph
-              className={sidebarGlyphClass("meta", "text-muted-foreground/70")}
-              aria-hidden
-            />
-            <span className="min-w-0 truncate text-[length:var(--app-font-size-ui-sm,11px)] text-muted-foreground/80">
-              {resolveThreadProjectLabel(project)}
-            </span>
-            <span className="ml-auto flex min-w-0 shrink-0 items-center gap-1.5">
-              {pr ? <PrStateChip pr={pr} className="[&_svg]:size-2.5" /> : null}
-              {branch ? (
-                <span className="flex min-w-0 items-center gap-1 text-[length:var(--app-font-size-ui-sm,11px)] text-muted-foreground/70">
-                  <GitBranchIcon className={sidebarGlyphClass("meta")} aria-hidden />
-                  <span className="max-w-36 truncate">{branch}</span>
-                </span>
-              ) : null}
+          <span
+            className={cn(
+              "flex shrink-0 items-center gap-1.5",
+              // Yield the trailing slot to the hover action cluster (pin + archive + done)
+              // rather than letting the two stack on top of each other.
+              sidebarHoverRevealHideClassName("activity-row"),
+            )}
+          >
+            {pr ? <PrStateChip pr={pr} className="[&_svg]:size-2.5" /> : null}
+            {isWorktree ? (
+              <WorktreeIcon
+                className={sidebarGlyphClass("meta", "text-muted-foreground/70")}
+                aria-label="Runs in a worktree"
+              />
+            ) : null}
+            <span className="text-[length:calc(var(--app-font-size-ui-meta,11px)+0.5px)] tabular-nums text-muted-foreground/65">
+              {formatRelativeTime(thread.updatedAt ?? thread.createdAt)}
             </span>
           </span>
         </button>
@@ -229,7 +223,7 @@ function ActivityThreadRow({
           <span
             data-slot="activity-completion-status"
             className={cn(
-              "pointer-events-none absolute top-1 right-1 inline-flex size-5 items-center justify-center",
+              "pointer-events-none absolute top-1/2 right-1.5 inline-flex size-5 -translate-y-1/2 items-center justify-center",
               sidebarHoverRevealHideClassName("activity-row"),
             )}
           >
@@ -237,7 +231,7 @@ function ActivityThreadRow({
           </span>
         ) : null}
         <span
-          className="absolute top-1 right-1 inline-flex items-center gap-1 opacity-0 transition-opacity group-hover/activity-row:opacity-100 group-focus-within/activity-row:opacity-100"
+          className="absolute top-1/2 right-1.5 inline-flex -translate-y-1/2 items-center gap-1 opacity-0 transition-opacity group-hover/activity-row:opacity-100 group-focus-within/activity-row:opacity-100"
           // Double-clicking an action button toggles it twice; it must not also open
           // the row's rename dialog. Pointer-up is the touch/pen double-tap signal,
           // so keep action taps out of that detector too.
@@ -697,7 +691,6 @@ export function SidebarActivityView({
     <ActivityThreadRow
       key={thread.id}
       thread={thread}
-      project={projectById.get(thread.projectId)}
       isActive={activeThreadId === thread.id}
       isSettled={isSettled}
       isPinned={pinnedThreadIdSet.has(thread.id)}

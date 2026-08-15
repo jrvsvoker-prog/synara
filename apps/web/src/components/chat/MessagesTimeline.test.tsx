@@ -322,7 +322,7 @@ describe("MessagesTimeline", () => {
     expect(markup).toContain("flex w-full justify-end");
     expect(markup).toContain("group flex flex-col items-end gap-px max-w-[80%]");
     expect(markup).toContain(
-      "w-max max-w-full min-w-0 self-end bg-[var(--app-user-message-background)]",
+      "w-max max-w-full min-w-0 self-end bg-[var(--color-background-control-opaque)]",
     );
     expect(markup).toContain("rounded-[var(--radius-user-message)]");
     expect(markup).toContain("py-1.5");
@@ -3361,7 +3361,9 @@ describe("MessagesTimeline", () => {
     expect(markup).toContain("Edited 1 file");
     expect(markup).toContain("Undo");
     expect(markup).toContain("Review");
-    expect(markup).toContain('aria-expanded="true"');
+    // Collapsed at rest: the summary line stands alone until the reader opens it.
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain('aria-label="Expand changed files list"');
     expect(markup).toContain("font-system-ui truncate font-normal");
     expect(markup).toContain("apps/web/src/components/Sidebar.tsx");
     expect(markup.indexOf('aria-label="Copy message"')).toBeGreaterThan(
