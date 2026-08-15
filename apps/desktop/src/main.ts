@@ -253,9 +253,22 @@ const shellEnvironmentSync = syncShellEnvironment();
 const IPC = DESKTOP_IPC_CHANNELS;
 const MAX_CLIPBOARD_IMAGE_DATA_URL_LENGTH = 16 * 1024 * 1024;
 const isDevelopment = Boolean(process.env.VITE_DEV_SERVER_URL);
+function readPackagedDesktopFlavor(): string | undefined {
+  if (!app.isPackaged) return undefined;
+  try {
+    const packageJson = JSON.parse(
+      FS.readFileSync(Path.join(app.getAppPath(), "package.json"), "utf8"),
+    ) as { synaraDesktopFlavor?: unknown };
+    return typeof packageJson.synaraDesktopFlavor === "string"
+      ? packageJson.synaraDesktopFlavor
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
 const desktopFlavor = resolveSynaraDesktopFlavor({
   isDevelopment,
-  requestedFlavor: process.env.SYNARA_DESKTOP_FLAVOR,
+  requestedFlavor: process.env.SYNARA_DESKTOP_FLAVOR ?? readPackagedDesktopFlavor(),
 });
 const desktopIdentity = synaraDesktopIdentity(desktopFlavor);
 const BASE_DIR =

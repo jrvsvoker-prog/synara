@@ -5,6 +5,9 @@ import {
   SYNARA_CANARY_BUNDLE_ID,
   SYNARA_CANARY_DESKTOP_ENTRY_URL,
   SYNARA_CANARY_DESKTOP_ORIGIN,
+  SYNARA_CURSOR_BUNDLE_ID,
+  SYNARA_CURSOR_DESKTOP_ENTRY_URL,
+  SYNARA_CURSOR_DESKTOP_ORIGIN,
   SYNARA_DESKTOP_ENTRY_URL,
   SYNARA_DESKTOP_ORIGIN,
   SYNARA_DESKTOP_UPDATE_CHANNEL,
@@ -48,6 +51,23 @@ describe("desktopIdentity", () => {
     });
   });
 
+  it("gives Cursor a fully separate desktop identity and storage profile", () => {
+    expect(SYNARA_CURSOR_BUNDLE_ID).toBe("com.emanueledipietro.synara.cursor");
+    expect(SYNARA_CURSOR_DESKTOP_ORIGIN).toBe("synara-cursor://app");
+    expect(SYNARA_CURSOR_DESKTOP_ENTRY_URL).toBe("synara-cursor://app/index.html");
+    expect(synaraDesktopIdentity("cursor")).toEqual({
+      flavor: "cursor",
+      displayName: "Synara Cursor",
+      bundleId: SYNARA_CURSOR_BUNDLE_ID,
+      scheme: "synara-cursor",
+      origin: SYNARA_CURSOR_DESKTOP_ORIGIN,
+      entryUrl: SYNARA_CURSOR_DESKTOP_ENTRY_URL,
+      userDataDirectoryName: "synara-cursor",
+      defaultHomeDirectoryName: ".synara-cursor",
+      usesScriptedUpdates: true,
+    });
+  });
+
   it("selects Canary explicitly without changing normal dev and production defaults", () => {
     expect(resolveSynaraDesktopFlavor({ isDevelopment: false })).toBe("production");
     expect(resolveSynaraDesktopFlavor({ isDevelopment: true })).toBe("development");
@@ -56,6 +76,9 @@ describe("desktopIdentity", () => {
     );
     expect(resolveSynaraDesktopFlavor({ isDevelopment: true, requestedFlavor: "canary" })).toBe(
       "canary",
+    );
+    expect(resolveSynaraDesktopFlavor({ isDevelopment: false, requestedFlavor: " cursor " })).toBe(
+      "cursor",
     );
   });
 });

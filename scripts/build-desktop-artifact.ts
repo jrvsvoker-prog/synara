@@ -21,7 +21,7 @@ import {
   MAC_DEVICE_HELPER_RESOURCE_PATH,
   validateDesktopNativeBuildHost,
 } from "./lib/desktop-platform-build-config.ts";
-import { SYNARA_PRODUCTION_BUNDLE_ID } from "@synara/shared/desktopIdentity";
+import { synaraDesktopIdentity } from "@synara/shared/desktopIdentity";
 import { parseBooleanEnvValue } from "./lib/env-bool.ts";
 import { finalizeSignedMacDmg } from "./lib/mac-dmg-finalize.ts";
 import { finalizeMacUpdateZip } from "./lib/mac-update-zip-finalize.ts";
@@ -40,6 +40,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
 const BuildArch = Schema.Literals(["arm64", "x64", "universal"]);
+const BuildFlavor = Schema.Literals(["production", "cursor"]);
 const requireFromScriptsWorkspace = createRequire(new URL("./package.json", import.meta.url));
 
 const RepoRoot = Effect.service(Path.Path).pipe(
@@ -103,6 +104,7 @@ interface BuildCliInput {
   readonly platform: Option.Option<typeof BuildPlatform.Type>;
   readonly target: Option.Option<string>;
   readonly arch: Option.Option<typeof BuildArch.Type>;
+  readonly flavor: Option.Option<typeof BuildFlavor.Type>;
   readonly buildVersion: Option.Option<string>;
   readonly sourceCommit: Option.Option<string>;
   readonly sourceTag: Option.Option<string>;
@@ -202,6 +204,7 @@ interface ResolvedBuildOptions {
   readonly platform: typeof BuildPlatform.Type;
   readonly target: string;
   readonly arch: typeof BuildArch.Type;
+  readonly flavor: typeof BuildFlavor.Type;
   readonly version: string | undefined;
   readonly sourceCommit: string | undefined;
   readonly sourceTag: string | undefined;
@@ -222,6 +225,7 @@ interface StagePackageJson {
   readonly synaraCommitHash: string;
   readonly synaraLockfileSha256: string;
   readonly synaraSourceTag: string | null;
+  readonly synaraDesktopFlavor: typeof BuildFlavor.Type;
   readonly synaraWindowsPublisherSubject: string | null;
   readonly private: true;
   readonly description: string;
@@ -254,6 +258,7 @@ const BuildEnvConfig = Config.all({
   platform: Config.schema(BuildPlatform, "SYNARA_DESKTOP_PLATFORM").pipe(Config.option),
   target: Config.string("SYNARA_DESKTOP_TARGET").pipe(Config.option),
   arch: Config.schema(BuildArch, "SYNARA_DESKTOP_ARCH").pipe(Config.option),
+  flavor: Config.schema(BuildFlavor, "SYNARA_DESKTOP_FLAVOR").pipe(Config.option),
   version: Config.string("SYNARA_DESKTOP_VERSION").pipe(Config.option),
   sourceCommit: Config.string("SYNARA_SOURCE_COMMIT").pipe(Config.option),
   sourceTag: Config.string("SYNARA_SOURCE_TAG").pipe(Config.option),
@@ -306,6 +311,7 @@ export const resolveBuildOptions = Effect.fn("resolveBuildOptions")(function* (
 
   const target = mergeOptions(input.target, env.target, PLATFORM_CONFIG[platform].defaultTarget);
   const arch = mergeOptions(input.arch, env.arch, getDefaultArch(platform));
+  const flavor = mergeOptions(input.flavor, env.flavor, "production");
   const version = mergeOptions(input.buildVersion, env.version, undefined);
   const sourceCommit = mergeOptions(input.sourceCommit, env.sourceCommit, undefined);
   const sourceTag = mergeOptions(input.sourceTag, env.sourceTag, undefined);
@@ -317,7 +323,9 @@ export const resolveBuildOptions = Effect.fn("resolveBuildOptions")(function* (
   const envMockUpdates = yield* resolveBooleanEnv("SYNARA_DESKTOP_MOCK_UPDATES", env.mockUpdates);
   const releaseDir = resolveBooleanFlag(input.mockUpdates, envMockUpdates)
     ? "release-mock"
-    : "release";
+    : flavor === "cursor"
+      ? "release-cursor"
+      : "release";
   const outputDir = path.resolve(
     repoRoot,
     mergeOptions(input.outputDir, env.outputDir, releaseDir),
@@ -338,6 +346,7 @@ export const resolveBuildOptions = Effect.fn("resolveBuildOptions")(function* (
     platform,
     target,
     arch,
+    flavor,
     version,
     sourceCommit,
     sourceTag,
@@ -719,21 +728,25 @@ const installFrozenStageDependencies = Effect.fn("installFrozenStageDependencies
 const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   platform: typeof BuildPlatform.Type,
   target: string,
-  productName: string,
+  flavor: typeof BuildFlavor.Type,
   signed: boolean,
   mockUpdates: boolean,
   mockUpdateServerPort: string | undefined,
 ) {
+  const desktopIdentity = synaraDesktopIdentity(flavor);
   const buildConfig: Record<string, unknown> = {
-    appId: SYNARA_PRODUCTION_BUNDLE_ID,
-    productName,
-    artifactName: "Synara-${version}-${arch}.${ext}",
+    appId: desktopIdentity.bundleId,
+    productName: desktopIdentity.displayName,
+    artifactName:
+      flavor === "cursor"
+        ? "Synara-Cursor-${version}-${arch}.${ext}"
+        : "Synara-${version}-${arch}.${ext}",
     directories: {
       buildResources: "apps/desktop/resources",
     },
     forceCodeSigning: signed,
   };
-  const publishConfig = resolveGitHubPublishConfig();
+  const publishConfig = flavor === "production" ? resolveGitHubPublishConfig() : undefined;
   if (publishConfig) {
     buildConfig.publish = [publishConfig];
   } else if (mockUpdates) {
@@ -1045,7 +1058,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   const resolvedBuildConfig = yield* createBuildConfig(
     options.platform,
     options.target,
-    desktopPackageJson.productName ?? "Synara",
+    options.flavor,
     options.signed,
     options.mockUpdates,
     options.mockUpdateServerPort,
@@ -1058,6 +1071,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     synaraCommitHash: commitHash,
     synaraLockfileSha256: resolvedLockfileSha256,
     synaraSourceTag: options.sourceTag ?? null,
+    synaraDesktopFlavor: options.flavor,
     synaraWindowsPublisherSubject: resolvedBuildConfig.windowsPublisherSubject,
     private: true,
     description: "Synara desktop build",
@@ -1132,7 +1146,10 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   }
 
   if (options.platform === "mac") {
-    yield* assertPackagedMacDeviceHelper(stageDistDir, desktopPackageJson.productName ?? "Synara");
+    yield* assertPackagedMacDeviceHelper(
+      stageDistDir,
+      synaraDesktopIdentity(options.flavor).displayName,
+    );
   }
 
   if (options.platform === "mac" && options.target === "dmg" && options.signed) {
@@ -1157,7 +1174,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     );
   }
 
-  if (options.platform === "mac") {
+  if (options.platform === "mac" && options.flavor === "production") {
     yield* Effect.log("[desktop-artifact] Repacking and validating macOS update zip...");
     const finalizedZip = yield* Effect.tryPromise({
       try: () =>
@@ -1221,6 +1238,10 @@ const buildDesktopArtifactCli = Command.make("build-desktop-artifact", {
   ),
   arch: Flag.choice("arch", BuildArch.literals).pipe(
     Flag.withDescription("Build arch, for example arm64/x64/universal (env: SYNARA_DESKTOP_ARCH)."),
+    Flag.optional,
+  ),
+  flavor: Flag.choice("flavor", BuildFlavor.literals).pipe(
+    Flag.withDescription("Desktop flavor (env: SYNARA_DESKTOP_FLAVOR)."),
     Flag.optional,
   ),
   buildVersion: Flag.string("build-version").pipe(

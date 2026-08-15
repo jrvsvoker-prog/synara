@@ -8,11 +8,15 @@ export const SYNARA_DESKTOP_UPDATE_CHANNEL = "synara";
 export const SYNARA_PRODUCTION_BUNDLE_ID = "com.emanueledipietro.synara";
 export const SYNARA_DEVELOPMENT_BUNDLE_ID = `${SYNARA_PRODUCTION_BUNDLE_ID}.dev`;
 export const SYNARA_CANARY_BUNDLE_ID = `${SYNARA_PRODUCTION_BUNDLE_ID}.canary`;
+export const SYNARA_CURSOR_BUNDLE_ID = `${SYNARA_PRODUCTION_BUNDLE_ID}.cursor`;
 export const SYNARA_CANARY_DESKTOP_SCHEME = "synara-canary";
 export const SYNARA_CANARY_DESKTOP_ORIGIN = `${SYNARA_CANARY_DESKTOP_SCHEME}://app`;
 export const SYNARA_CANARY_DESKTOP_ENTRY_URL = `${SYNARA_CANARY_DESKTOP_ORIGIN}/index.html`;
+export const SYNARA_CURSOR_DESKTOP_SCHEME = "synara-cursor";
+export const SYNARA_CURSOR_DESKTOP_ORIGIN = `${SYNARA_CURSOR_DESKTOP_SCHEME}://app`;
+export const SYNARA_CURSOR_DESKTOP_ENTRY_URL = `${SYNARA_CURSOR_DESKTOP_ORIGIN}/index.html`;
 
-export type SynaraDesktopFlavor = "production" | "development" | "canary";
+export type SynaraDesktopFlavor = "production" | "development" | "canary" | "cursor";
 
 export interface SynaraDesktopIdentity {
   readonly flavor: SynaraDesktopFlavor;
@@ -33,10 +37,26 @@ export function resolveSynaraDesktopFlavor(input: {
   if (input.requestedFlavor?.trim().toLowerCase() === "canary") {
     return "canary";
   }
+  if (input.requestedFlavor?.trim().toLowerCase() === "cursor") {
+    return "cursor";
+  }
   return input.isDevelopment ? "development" : "production";
 }
 
 export function synaraDesktopIdentity(flavor: SynaraDesktopFlavor): SynaraDesktopIdentity {
+  if (flavor === "cursor") {
+    return {
+      flavor,
+      displayName: "Synara Cursor",
+      bundleId: SYNARA_CURSOR_BUNDLE_ID,
+      scheme: SYNARA_CURSOR_DESKTOP_SCHEME,
+      origin: SYNARA_CURSOR_DESKTOP_ORIGIN,
+      entryUrl: SYNARA_CURSOR_DESKTOP_ENTRY_URL,
+      userDataDirectoryName: "synara-cursor",
+      defaultHomeDirectoryName: ".synara-cursor",
+      usesScriptedUpdates: true,
+    };
+  }
   if (flavor === "canary") {
     return {
       flavor,
