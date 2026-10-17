@@ -62,6 +62,7 @@ import {
   isLocalHtmlPreviewUrl,
   isSameLocalHtmlPreviewGrant,
 } from "./localHtmlPreviewProtocol";
+import { BrowserWorkspacePersistence } from "./browserWorkspacePersistence";
 
 export { BROWSER_SESSION_PARTITION } from "./browserSessionPolicy";
 // Switching tabs must never cost the page: an inactive tab keeps its DOM, scroll,
@@ -245,6 +246,7 @@ export interface BrowserAutomationDownloadEvent {
 }
 
 export interface DesktopBrowserManagerOptions {
+  workspaceStatePath?: string;
   onRuntimeReady?: (runtime: BrowserAutomationVisibleRuntime) => () => void;
   onHumanControl?: (threadId: ThreadId) => void;
   beforeInputEvent?: (event: Electron.Event, input: Electron.Input) => boolean;
@@ -462,6 +464,7 @@ type EmbeddedPopupOptions = Electron.BrowserWindowConstructorOptions & {
 };
 
 export class DesktopBrowserManager {
+  private readonly workspacePersistence: BrowserWorkspacePersistence | undefined;
   private window: BrowserWindow | null = null;
   private activeThreadId: ThreadId | null = null;
   private activeBounds: BrowserPanelBounds | null = null;
@@ -554,6 +557,17 @@ export class DesktopBrowserManager {
   };
 
   constructor(private readonly options: DesktopBrowserManagerOptions = {}) {
+    if (options.workspaceStatePath) {
+      this.workspacePersistence = new BrowserWorkspacePersistence(options.workspaceStatePath);
+      for (const saved of this.workspacePersistence.restoredWorkspaces()) {
+        this.states.set(saved.threadId, {
+          ...defaultThreadBrowserState(saved.threadId),
+          open: saved.open,
+          activeTabId: saved.activeTabId,
+          tabs: saved.tabs.map((tab) => Object.assign(createBrowserTab(tab.url), tab)),
+        });
+      }
+    }
     nativeTheme.on("updated", this.updateNativeViewBackgrounds);
     this.sessionPolicy = new BrowserSessionPolicy((event) => {
       this.handleSessionDownload(event);
@@ -1319,6 +1333,8 @@ export class DesktopBrowserManager {
   }
 
   dispose(): void {
+    // Flush before runtime/popup teardown can change the logical workspace.
+    this.workspacePersistence?.flush();
     nativeTheme.removeListener("updated", this.updateNativeViewBackgrounds);
     this.disposed = true;
     this.annotations.dispose();
@@ -3646,6 +3662,7 @@ export class DesktopBrowserManager {
     const state = this.states.get(threadId);
     if (state) {
       state.version = nextVersion;
+      if (!this.disposed) this.workspacePersistence?.update(state);
     }
   }
 
